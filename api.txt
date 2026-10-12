@@ -1,0 +1,168 @@
+ADMIN API
+
+All endpoints on the Fern UI (port 5000). 
+Auth: session from POST /admin, or the
+X-Admin-Key header with the current rotating key from fern-ui/json/admin_key.json.
+
+POST /admin
+Form: admin_key (reads current key from fern-ui/json/admin_key.json). -> 302 redirect or 401.
+Example (session login):
+  import json
+  import requests
+
+  key = json.load(open("fern-ui/json/admin_key.json"))["key"]
+  s = requests.Session()
+  r = s.post("http://127.0.0.1:5000/admin", data={"admin_key": key})
+
+GET /api/admin/data
+Proxies license server /api/admin/data. -> 503 if license server down.
+Example (header auth, no login needed):
+  import json
+  import requests
+
+  key = json.load(open("fern-ui/json/admin_key.json"))["key"]
+  r = requests.get("http://127.0.0.1:5000/api/admin/data",
+                   headers={"X-Admin-Key": key})
+  data = r.json()
+
+GET /api/admin/status
+Returns status config.
+Example:
+  import json
+  import requests
+
+  key = json.load(open("fern-ui/json/admin_key.json"))["key"]
+  r = requests.get("http://127.0.0.1:5000/api/admin/status",
+                   headers={"X-Admin-Key": key})
+  status = r.json()
+
+POST /api/admin/status
+Body:
+{
+  "banner": { "text": "...", "level": "info" },
+  "services": {
+    "api":     { "override": "up",       "note": "" },
+    "ui":      { "override": "degraded", "note": "" },
+    "discord": { "override": "",         "note": "" }
+  }
+}
+level: info|warn|critical. override: up|degraded|down (empty = clear). Returns updated config.
+Example:
+  import json
+  import requests
+
+  key = json.load(open("fern-ui/json/admin_key.json"))["key"]
+  r = requests.post("http://127.0.0.1:5000/api/admin/status",
+                    headers={"X-Admin-Key": key},
+                    json={
+                        "banner": {"text": "Site is up", "level": "info"},
+                        "services": {"ui": {"override": "degraded", "note": "slow"}},
+                    })
+  status = r.json()
+
+GET /api/admin/finance
+Returns:
+{
+  "config": {
+    "monthly_price": 5.0,
+    "lifetime_price": 10.0,
+    "expenses_pct": 10.0,
+    "partners": [
+      { "id": "1013651504315506719", "pct": 45.0 },
+      { "id": "1442926777323487232", "pct": 45.0 }
+    ]
+  },
+  "weeks": [
+    {
+      "week": "2026-08-03",
+      "monthly": 2,
+      "lifetime": 1,
+      "gross": 20.0,
+      "expenses": 2.0,
+      "net": 18.0,
+      "partners": [{ "name": "...", "id": "...", "pct": 45.0, "amount": 8.1 }]
+    }
+  ]
+}
+Example:
+  import json
+  import requests
+
+  key = json.load(open("fern-ui/json/admin_key.json"))["key"]
+  r = requests.get("http://127.0.0.1:5000/api/admin/finance",
+                   headers={"X-Admin-Key": key})
+  data = r.json()
+
+POST /api/admin/finance
+Any subset of config to update. Only known partner IDs accepted. Returns same shape as GET.
+Example:
+  import json
+  import requests
+
+  key = json.load(open("fern-ui/json/admin_key.json"))["key"]
+  r = requests.post("http://127.0.0.1:5000/api/admin/finance",
+                    headers={"X-Admin-Key": key},
+                    json={
+                        "monthly_price": 6.0,
+                        "expenses_pct": 15.0,
+                    })
+  data = r.json()
+
+GET /api/admin/accounts
+Returns:
+{
+  "accounts": [
+    {
+      "user_id": "1234567890",
+      "licenses": [
+        { "key": "...", "type": "trial", "expires": "...", "created": "...", "active": true }
+      ]
+    }
+  ],
+  "count": 1
+}
+type: trial|monthly|lifetime.
+Example:
+  import json
+  import requests
+
+  key = json.load(open("fern-ui/json/admin_key.json"))["key"]
+  r = requests.get("http://127.0.0.1:5000/api/admin/accounts",
+                   headers={"X-Admin-Key": key})
+  data = r.json()
+
+POST /api/admin/license
+Proxied to license server. Body: { "days": 30 } (0/omitted = lifetime).
+Example:
+  import json
+  import requests
+
+  key = json.load(open("fern-ui/json/admin_key.json"))["key"]
+  r = requests.post("http://127.0.0.1:5000/api/admin/license",
+                    headers={"X-Admin-Key": key},
+                    json={"days": 30})
+  lic = r.json()
+
+POST /api/admin/changelog
+Proxied. Body: { "title": "...", "body": "...", "version": "optional" }.
+Example:
+  import json
+  import requests
+
+  key = json.load(open("fern-ui/json/admin_key.json"))["key"]
+  r = requests.post("http://127.0.0.1:5000/api/admin/changelog",
+                    headers={"X-Admin-Key": key},
+                    json={
+                        "title": "v2.1.0", "body": "Fixed things", "version": "2.1.0",
+                    })
+  entry = r.json()
+
+DELETE /api/admin/changelog/<entry_id>
+Proxied. -> {"status": "ok"}.
+Example:
+  import json
+  import requests
+
+  key = json.load(open("fern-ui/json/admin_key.json"))["key"]
+  r = requests.delete("http://127.0.0.1:5000/api/admin/changelog/<entry_id>",
+                      headers={"X-Admin-Key": key})
